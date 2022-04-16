@@ -1,0 +1,38 @@
+# Install dataset from https://www.yelp.com/dataset/download
+# Extract wherever. Rename it yelp_dataset.tgz
+# Re-extract. Now it has 5 files, place them in the root of this folder
+
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import numpy as np
+
+#Pandas can read many data types. CSV and JSON are most common
+#Lines = True means the JSON is written in lines with \n
+#df = pd.read_json(r'yelp_dataset.json', encoding = 'unicode_escape', lines=True)
+df = pd.read_json(r'yelp_academic_dataset_business.json', lines=True)
+#Allows us to view each column we have to work with
+df = df.drop(columns=['business_id', 'city', 'categories', 'address', 'attributes', 'is_open'], axis=1)
+df['Restaurants'] = df.groupby(['state'])['name'].transform('count')
+df = df.groupby('state')
+dfp = df.mean()
+dfp = dfp.rename(columns={"review_count":"average_reviews"})
+dfp = dfp.reset_index()
+print(dfp)
+dfp = dfp.loc[np.invert(dfp['state'].isin(['AS', 'AB', 'FSM', 'PW', 'RMI', 'NYC', 'HI', 'AK', 'DC', 'GU', 'MP', 'PR', 'VI', 'XMS']))]
+
+fig = px.scatter_3d(dfp,
+                x = 'state',
+                y= 'stars',
+                z = 'average_reviews',
+                )
+
+fig.update_layout(
+    scene = dict(
+        xaxis = dict(nticks=24),),
+    width=700,
+    margin=dict(r=20, l=10, b=10, t=10))
+fig.update_layout(title_text='YELP Restaurant Reviews by State', title_x=0.5)
+fig.update_layout(margin={"r":0,"t":100,"l":0,"b":0}, height=1000)
+fig.show()
