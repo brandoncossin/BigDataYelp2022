@@ -1,0 +1,106 @@
+# Install dataset from https://www.yelp.com/dataset/download
+# Extract wherever. Rename it yelp_dataset.tgz
+# Re-extract. Now it has 5 files, place them in the root of this folder
+
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import numpy as np
+#Pandas can read many data types. CSV and JSON are most common
+#Lines = True means the JSON is written in lines with \n
+#df = pd.read_json(r'yelp_dataset.json', encoding = 'unicode_escape', lines=True)
+lat_list= {
+    'AZ': 34.05,
+    'CA': 36.77,
+    'CO': 39.11,
+    'DE': 39.00,
+    'IL': 40.00,
+    'MA': 42.40,
+    'MI': 44.18,
+    'MT': 46.96,
+    'NC': 35.78,
+    'NJ': 39.83,
+    'NV': 39.87,
+    'PA': 41.20,
+    'SD': 44.50,
+    'TN': 35.86,
+    'TX': 31.00,
+    'UT': 39.41,
+    'VT': 44.00,
+    'WA': 47.75,
+}
+long_list= {
+    'AZ': -111.09,
+    'CA': -119.42,
+    'CO': -105.35,
+    'DE': -75.50,
+    'IL': -89.00,
+    'MA': -71.38,
+    'MI': -84.50,
+    'MT': -109.53,
+    'NC': -80.79,
+    'NJ': -74.87,
+    'NV': -117.22,
+    'PA': -77.19,
+    'SD': -100.00,
+    'TN': -86.66,
+    'TX': -100.00,
+    'UT': -111.95,
+    'VT': -72.69,
+    'WA': -120.74,
+}
+df = pd.read_json(r'yelp_academic_dataset_business.json', lines=True)
+#Allows us to view each column we have to work with
+df = df.drop(columns=['business_id', 'city', 'categories', 'address', 'attributes', 'is_open'], axis=1)
+df = df.loc[np.invert(df['state'].isin(['AS', 'AB', 'FSM', 'PW', 'RMI', 'NYC', 'HI', 'AK', 'DC', 'GU', 'MP', 'PR', 'VI', 'XMS']))]
+df['Restaurants'] = df.groupby(['state'])['name'].transform('count')
+df = df.groupby('state')
+dfp = df.mean()
+dfp = dfp.rename(columns={"review_count":"average_reviews"})
+dfp = dfp.reset_index()
+
+print(dfp)
+for lat in lat_list:
+    print(lat, lat_list[lat])
+    dfp.loc[dfp.state == lat, 'latitude'] = lat_list[lat]
+for long in long_list:
+    print(long, long_list[long])
+    dfp.loc[dfp.state == long, 'longitude'] = long_list[long] 
+print(dfp)
+dfp.to_json('cleaned_dataset.json')
+fig = px.choropleth(dfp,
+                locations = 'state',
+                #color='Restaurants',
+                color='stars',
+                #hover_data=['Restaurants'],
+                hover_data=['stars'],
+                color_continuous_scale="RdYlGn",
+                locationmode='USA-states',
+                scope="usa",
+                #range_color=(0, 34000),
+                range_color=(0, 5),
+                title='YELP restaurant state scale',
+                height=600)
+fig.add_trace(go.Scattergeo(
+            locationmode = 'USA-states',
+            lon = dfp['longitude'],
+            lat = dfp['latitude'],
+            hoverinfo = 'text',
+            mode = 'markers',
+            #text = dfp['Restaurants'],
+            text = dfp[['state', 'Restaurants', 'stars']],
+            name = "Star Count",
+            marker = dict(
+                size = ((dfp['Restaurants'] / 34039) * 140),
+                #size = (dfp['stars'] * 25),
+                color = 'rgb(102,102,102)',
+                line = dict(
+                width = 30,
+                color = 'rgba(68, 68, 68, 0)'
+                )          
+            )))
+fig.update_geos(fitbounds="locations")
+fig.update_layout(title_text='YELP Restaurant Reviews by State', title_x=0.5)
+fig.update_layout(margin={"r":0,"t":100,"l":0,"b":0}, height=1000)
+fig.show()
